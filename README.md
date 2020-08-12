@@ -1,2 +1,2 @@
-# Patern_Planet
-Shading the planet
+# Lab4_Render
+Shaders for 3D models
