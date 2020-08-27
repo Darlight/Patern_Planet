@@ -17,11 +17,11 @@ from tezt import Render
 import os
 
 dir_path = os.path.dirname(os.path.realpath( __file__))
-model_path = os.path.join(dir_path, r'Models\wario.obj')
+model_path = os.path.join(dir_path, r'Models\sphere.obj')
 
 bitmap = Render()
 bitmap.glCreateWindow()
 print(bitmap.glInit())
 
-bitmap.load(model_path, translate=(450, 225, 50), scale = (110, 110, 75))
+bitmap.load(model_path, translate=(400, 225, 50), scale = (150, 150, 75))
 bitmap.glFinish('output.bmp')

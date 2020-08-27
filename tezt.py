@@ -17,7 +17,7 @@ Proposito: Un framebuffer simple para pintar un punto con modificaciones simples
 import struct
 from obj import Obj, Texture
 from math_functions import *
-
+import random #Solo para dar texturas random al planeta
 #opcion = 0
 def char(c):
     # un char que vale un caracter de tipo string
@@ -32,14 +32,14 @@ def dword(c):
     return struct.pack('=l', c)
 
 def color(r, g, b):
-    return bytes([b, g, r])
+    return bytes([int(b * 255), int(g * 255), int(r * 255)])
 
 #Colores como constantes
-GREEN = color(0, 255, 0)
-RED = color(255, 0, 0)
-BLUE = color(0, 0, 255)
+GREEN = color(0, 1, 0)
+RED = color(1, 0, 0)
+BLUE = color(0, 0, 1)
 BLACK = color(0, 0, 0)
-WHITE = color(255, 255, 255) 
+WHITE = color(1, 1, 1) 
 
 class Render(object):
     def __init__(self):
@@ -166,8 +166,48 @@ class Render(object):
             self.inundation_right(x,y+1,color1,color2)
             #self.inundation(x-1,y,color1,color2)
             self.inundation_right(x,y-1,color1,color2)
+            
+    def shader(self, x=0, y=0, barycentricCoords = (), normals=()):
+        shader_color = 0, 0, 0
+        current_shape = self.shape 
+        u, v, w = barycentricCoords
+        n1, n2, n3 = normals
 
-    def triangle(self, A, B, C, color_shade):
+        if current_shape == "Planeta":
+            if y < 280 or y > 520:
+                shader_color = 156, 152, 164
+            elif y < 320 or y > 480:
+                shader_color = 146, 160, 180
+            elif y < 360 or y > 420:
+                shader_color = 105, 145, 170
+            else:
+                shader_color = 136, 190, 222
+
+        b, g, r = shader_color
+
+        b /= 255
+        g /= 255
+        r /= 255
+
+        nx = n1[0] * u + n2[0] * v + n3[0] * w
+        ny = n1[1] * u + n2[1] * v + n3[1] * w
+        nz = n1[2] * u + n2[2] * v + n3[2] * w
+
+        normal = V3(nx, ny, nz)
+        light = V3(0.700, 0.700, 0.750)
+
+        intensity = dot(norm(normal), norm(light))
+
+        b *= intensity
+        g *= intensity
+        r *= intensity
+
+        if intensity > 0:
+            return r, g, b
+        else:
+            return 0,0,0
+
+    def triangle(self, A, B, C, normals):
         xmin, xmax, ymin, ymax = bbox(A, B, C)
 
         for x in range(xmin, xmax + 1):
@@ -178,16 +218,20 @@ class Render(object):
                     continue
         
                 z = A.z * u + B.z * v + C.z * w
+                r, g, b = self.shader(x,y,barycentricCoords = (u, v, w), normals= normals)
+
+
+                shader_color = color(r, g, b)
 
                 if z > self.zbuffer[y][x]:
-                    self.point(x, y, color_shade)
+                    self.point(x, y, shader_color)
                     self.zbuffer[y][x] = z
 
-    def load(self, filename, translate=[0,0], scale=[1,1]):
+    def load(self, filename, translate=[0,0], scale=[1,1], shape = "Planeta"):
         model = Obj(filename)
-        light = V3(0,0,1)
-        normal = V3(0,0,0)
-
+        #light = V3(0,0,1)
+        #normal = V3(0,0,0)
+        self.shape = shape
         for face in model.faces:
             vcount = len(face)
             if vcount == 3:
@@ -214,15 +258,19 @@ class Render(object):
                 a = V3(x1, y1, z1)
                 b = V3(x2, y2, z2)
                 c = V3(x3, y3, z3)
+ 
+                vn0 = model.normals[face1]
+                vn1 = model.normals[face2]
+                vn2 = model.normals[face3]
 
-                normal = cross(sub(b, a), sub(c, a))
-                intensity = dot(norm(normal), norm(light))
-                grey = round(255 * intensity)
-                if grey < 0:
-                    continue
+                #normal = cross(sub(b, a), sub(c, a))
+                #intensity = dot(norm(normal), norm(light))
+                #grey = round(255 * intensity)
+                #if grey < 0:
+                 #   continue
 
-                intensity_color = color(grey, grey, grey)
-                self.triangle(a, b, c, intensity_color)
+                #intensity_color = color(grey, grey, grey)
+                self.triangle(a, b, c, normals = (vn0, vn1, vn2))
             else:
                 face1 = face[0][0] - 1
                 face2 = face[1][0] - 1
@@ -255,16 +303,22 @@ class Render(object):
                 c = V3(x3, y3, z3)
                 d = V3(x4, y4, z4)
 
-                normal = cross(sub(b, a), sub(c, a))
-                intensity = dot(norm(normal), norm(light))
-                grey = round(255 * intensity)
-                if grey < 0:
-                    continue
+                vn0 = model.normals[face1]
+                vn1 = model.normals[face2]
+                vn2 = model.normals[face3]
+                vn3 = model.normals[face4]
 
-                intensity_color = color(grey, grey, grey)
 
-                self.triangle(a, b, c, intensity_color)
-                self.triangle(a, c, d, intensity_color)
+                #normal = cross(sub(b, a), sub(c, a))
+                #intensity = dot(norm(normal), norm(light))
+                #grey = round(255 * intensity)
+                #if grey < 0:
+                   # continue
+
+                #intensity_color = color(grey, grey, grey)
+
+                self.triangle(a, b, c, normals=(vn0, vn1, vn2))
+                self.triangle(a, c, d, normals=(vn0, vn2, vn3))
 
             
     def glFinish(self, filename):
